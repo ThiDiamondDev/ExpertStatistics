@@ -14,9 +14,10 @@ if not mt5.initialize():
     print("initialize() failed, error code =", mt5.last_error())
     quit()
 
+canvas = None
 # create a root window for the GUI
 root = tk.Tk()
-root.geometry("400x200")  # set the window size
+root.geometry("600x400")  # set the window size
 root.eval(
     "tk::PlaceWindow %s center" % root.winfo_toplevel()
 )  # center the window on the screen
@@ -65,8 +66,16 @@ plot_button.pack(pady=(0, 10), padx=(150, 150))  # place the button with some pa
 fig = plt.Figure(figsize=(5, 4), dpi=100)
 
 
+def clear_plot():
+    global canvas
+    if canvas:
+        canvas.get_tk_widget().destroy()
+    canvas = None
+
+
 # define a function to plot the data based on the selected dates
 def plot_data(start_date, end_date):
+    global canvas
     # convert the dates to datetime objects
     start_datetime = datetime.combine(start_date, datetime.min.time())
     end_datetime = datetime.combine(end_date, datetime.min.time())
@@ -75,8 +84,14 @@ def plot_data(start_date, end_date):
     deals = mt5.history_deals_get(start_datetime, end_datetime)
 
     # check if there are any deals found
-    if deals == None:
-        print("No deals found", " error code={}".format(mt5.last_error()))
+    if deals == None or len(deals) == 0:
+        print("No deals found")
+        if not mt5.last_error()[0] == 1:
+            print("error code={}".format(mt5.last_error()))
+        fig.clear()
+        clear_plot()
+        if canvas:
+            canvas.draw()  # draw the figure on the canvas
         return
     elif len(deals) > 0:
         print(
@@ -93,10 +108,11 @@ def plot_data(start_date, end_date):
 
         # group the data by time and magic number and sum up the profit values
         filtered_data = deals.groupby([pd.Grouper(key="time", freq="D"), "magic"]).sum()
-
+        fig.clear()
         # plot the profit values as a stacked bar chart and add it to the figure object
         filtered_data["profit"].unstack().plot(ax=fig.add_subplot(111))
 
+        clear_plot()
         # create a canvas object to display the figure in tkinter GUI
         canvas = FigureCanvasTkAgg(fig, master=root)
         canvas.draw()  # draw the figure on the canvas
