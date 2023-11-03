@@ -120,7 +120,7 @@ def group_data_by_time_and_magic(deals):
     deals["time"] = pd.to_datetime(deals["time"], unit="s")
 
     # group the data by time and magic number and sum up the profit values
-    filtered_data = deals.groupby([pd.Grouper(key="time", freq="D"), "magic"]).sum()
+    filtered_data = deals.groupby([pd.Grouper(key="time", freq="D"), "magic"])
 
     return filtered_data  # return the grouped data
 
@@ -151,7 +151,7 @@ def plot_data(start_date, end_date):
     fig.clear()  # clear the figure
     ax = fig.add_subplot(111)
     # plot the profit values as a stacked bar chart and add it to the figure object
-    filtered_data["profit"].unstack().plot(ax=ax)
+    filtered_data["profit"].sum().unstack().plot(ax=ax)
 
     clear_plot()  # clear the canvas
 
@@ -161,7 +161,10 @@ def plot_data(start_date, end_date):
 
     ax.set_title("Total Profit by Magic Number")
     lines = ax.get_lines()
-    total_profit_df = filtered_data.groupby("magic").agg({"profit": "sum"})
+    total_profit_df = filtered_data.sum().groupby("magic").agg({"profit": "sum"})
+    mean_profit_df = (
+        filtered_data["profit"].mean().groupby("magic").agg(profit="mean").reset_index()
+    )
     # configure treeview tags to match chart colors
     for i, line in enumerate(lines):
         tag_name = f"magic_{line.get_label()}"
@@ -173,12 +176,14 @@ def plot_data(start_date, end_date):
     # clear previous treeview items and insert new items with updated tags
     treeview.delete(*treeview.get_children())
     for magic_number, row in total_profit_df.iterrows():
+        mean_mask = mean_profit_df["magic"] == magic_number
         tag_name = f"magic_{magic_number}"
         treeview.insert(
             "",
             "end",
             values=[
                 magic_number,
+                mean_profit_df[mean_mask]["profit"].values[0],
                 row["profit"],
                 positions_count.get(magic_number, 0),
             ],
@@ -217,16 +222,23 @@ def clear_plot():
 
 
 def create_tree_view():
-    treeview["columns"] = ("Magic Number", "Total Profit", "Opened Positions")
+    treeview["columns"] = (
+        "Magic Number",
+        "Mean Daily Profit",
+        "Total Profit",
+        "Opened Positions",
+    )
 
     # format column headings
     treeview.column("#0", width=0, stretch=tk.NO)
     treeview.column("Magic Number", anchor=tk.CENTER, width=100)
+    treeview.column("Mean Daily Profit", anchor=tk.CENTER, width=100)
     treeview.column("Total Profit", anchor=tk.CENTER, width=100)
     treeview.column("Opened Positions", anchor=tk.CENTER, width=100)
 
     treeview.heading("#0", text="", anchor=tk.CENTER)
     treeview.heading("Magic Number", text="Magic Number", anchor=tk.CENTER)
+    treeview.heading("Mean Daily Profit", text="Mean Daily Profit", anchor=tk.CENTER)
     treeview.heading("Total Profit", text="Profit", anchor=tk.CENTER)
     treeview.heading("Opened Positions", text="Positions", anchor=tk.CENTER)
 
