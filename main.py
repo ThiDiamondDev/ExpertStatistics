@@ -11,6 +11,8 @@ from tkcalendar import DateEntry  # for creating calendar widgets
 import matplotlib.colors as mcolors
 from tkinter import ttk
 
+tabs_list = ["Sum Profit", "Mean Profit"]
+
 
 def initialize_mt5():
     # establish connection to the MetaTrader 5 terminal
@@ -126,40 +128,45 @@ def group_data_by_time_and_magic(deals):
 
 
 def plot_data(start_date, end_date):
-    global canvas, root, treeview, deals  # use the global canvas variable
+    global tab_control, fig, canvas, root, treeview, deals  # use the global canvas variable
     # convert the dates to datetime objects
     start_datetime = datetime.combine(start_date, datetime.min.time())
     end_datetime = datetime.combine(end_date, datetime.min.time())
-
     # fetch the data from MetaTrader 5
     deals = fetch_data(start_datetime, end_datetime)
 
-    # check if the data is valid
-    if deals is None:
-        fig.clear()  # clear the figure
-        clear_plot()  # clear the canvas
-        if canvas:
-            canvas.draw()  # draw the figure on the canvas
-        return
-
+    if deals == None or len(deals) == 0:
+        clear_all()
     # convert the data to a dataframe
     deals = convert_data_to_dataframe(deals)
-
     # group the data by time and magic number
     filtered_data = group_data_by_time_and_magic(deals)
+    # clear the treeview
+    treeview.delete(*treeview.get_children())
+    # create a tab container to hold the plots
+    # create a new figure for each tab
+    fig.clear()
+    for title, data in [
+        (tabs_list[0], filtered_data["profit"].sum()),
+        (tabs_list[1], filtered_data["profit"].mean()),
+    ]:
+        fig = plt.Figure(figsize=(5, 4), dpi=100)
+        ax = fig.add_subplot(111)
+        data.unstack().plot(ax=ax)
+        ax.set_title(title + " by Magic Number")
+        # create a new canvas for each tab
 
-    fig.clear()  # clear the figure
-    ax = fig.add_subplot(111)
-    # plot the profit values as a stacked bar chart and add it to the figure object
-    filtered_data["profit"].sum().unstack().plot(ax=ax)
+        # add the canvas to the tab and the tab to the tab control
+        for tab in tab_control.tabs():
+            if tab_control.tab(tab, "text") == title:
+                tab_frame = tab_control.nametowidget(tab)
+                for tab_child in tab_frame.winfo_children():
+                    tab_child.destroy()
+                canvas = FigureCanvasTkAgg(fig, master=tab_frame)
 
-    clear_plot()  # clear the canvas
+                canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
-    canvas = FigureCanvasTkAgg(fig, master=root)
-    canvas.draw()  # draw the figure on the canvas
-    canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH)  # place the canvas widget
-
-    ax.set_title("Total Profit by Magic Number")
+        canvas.draw()
     lines = ax.get_lines()
     total_profit_df = filtered_data.sum().groupby("magic").agg({"profit": "sum"})
     mean_profit_df = (
@@ -192,6 +199,16 @@ def plot_data(start_date, end_date):
         # define columns for the treeview.view widget
 
 
+def clear_all():
+    # clear all tabs
+    for tab in tab_control.tabs():
+        tab_frame = tab_control.nametowidget(tab)
+        for tab_child in tab_frame.winfo_children():
+            tab_child.destroy()
+    for child in treeview.get_children():
+        treeview.delete(child)
+
+
 # define a function to get positions by magic number
 def get_positions(start_date):
     positions = mt5.positions_get()
@@ -214,7 +231,7 @@ def get_positions(start_date):
 
 
 def clear_plot():
-    global canvas  # use the global canvas variable
+    global canvas
     if canvas:
         canvas.get_tk_widget().destroy()  # destroy the widget
     for child in treeview.get_children():
@@ -247,14 +264,15 @@ def create_tree_view():
 
 
 def main():
-    global fig, canvas, start_date, end_date, root, treeview  # use global variables for these objects
+    global tab_control, fig, canvas, start_date, end_date, root, treeview  # use global variables for these objects
 
     initialize_mt5()  # initialize MetaTrader 5
 
     root = tk.Tk()  # create a root window for the GUI
     treeview = ttk.Treeview(root)
 
-    # maximize the window
+    tab_control = ttk.Notebook(root)
+
     # Set the geometry of frame
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
     root.geometry("%dx%d+0+0" % (w, h))
@@ -271,6 +289,13 @@ def main():
 
     fig, canvas = create_canvas(root)  # create figure and canvas objects
     create_tree_view()
+    tab_control.pack(fill="both", expand=True)
+    # create a new figure for each tab
+    for title in tabs_list:
+        frame = ttk.Frame(tab_control)
+        frame.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        tab_control.add(frame, text=title)
+    # pack the tab control widget into the root window and display it
     root.protocol(
         "WM_DELETE_WINDOW", lambda: [mt5.shutdown(), root.destroy()]
     )  # define a function to close the connection and destroy the window when exiting
