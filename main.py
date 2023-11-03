@@ -163,9 +163,9 @@ def plot_data(start_date, end_date):
     lines = ax.get_lines()
     df2 = filtered_data.groupby("magic").agg({"profit": "sum"})
     # configure treeview tags to match chart colors
-    for i, bar in enumerate(lines):
-        tag_name = f'magic_{deals["magic"].unique()[i]}'
-        color = mcolors.to_hex(bar.get_color())
+    for i, line in enumerate(lines):
+        tag_name = f"magic_{line.get_label()}"
+        color = mcolors.to_hex(line.get_color())
         treeview.tag_configure(tag_name, background=color)
 
     deals.reset_index()
