@@ -161,7 +161,7 @@ def plot_data(start_date, end_date):
 
     ax.set_title("Total Profit by Magic Number")
     lines = ax.get_lines()
-    df2 = filtered_data.groupby("magic").agg({"profit": "sum"})
+    total_profit_df = filtered_data.groupby("magic").agg({"profit": "sum"})
     # configure treeview tags to match chart colors
     for i, line in enumerate(lines):
         tag_name = f"magic_{line.get_label()}"
@@ -172,7 +172,7 @@ def plot_data(start_date, end_date):
     positions_count = get_positions(start_date=start_date)
     # clear previous treeview items and insert new items with updated tags
     treeview.delete(*treeview.get_children())
-    for magic_number, row in df2.iterrows():
+    for magic_number, row in total_profit_df.iterrows():
         tag_name = f"magic_{magic_number}"
         treeview.insert(
             "",
