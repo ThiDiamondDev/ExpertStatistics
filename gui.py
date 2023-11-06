@@ -295,7 +295,13 @@ class GUI:
         self.info_window.destroy()
         self.info_window = None
 
-    # define a function to get the deals of the full history from MT5
+    def validate_float(self, new_value):
+        try:
+            float(new_value)
+            return True
+        except ValueError:
+            return False
+
     def show_edit_filters_window(self):
         # get the deals as a pandas dataframe
         mt_deals = self.mt5.fetch_data(0, datetime.now())
@@ -303,7 +309,7 @@ class GUI:
         # get the unique magic values as a list
         magic_values = sorted(deals["magic"].unique().tolist())
         self.filters_window = tk.Toplevel()
-        self.filters_window.title("Edit Filters")
+        self.filters_window.title("Show Information")
         self.filters_window.protocol(
             "WM_DELETE_WINDOW",
             self.clear_filters_window,
@@ -312,63 +318,88 @@ class GUI:
         self.center_window(self.filters_window, w=500)
         # create a frame for the grid layout
         grid_frame = tk.Frame(self.filters_window)
-        # create a list of checkboxes, labels, and entries for each magic value
         checkboxes = []
         checkboxes_states = []
+
+        # create a list of labels and entries for each magic value
         labels = []
         entries = []
         # loop through the magic values
         for i, magic in enumerate(magic_values):
-            # create a checkbox with the value of the magic
             variable = tk.IntVar()
             checkbox = tk.Checkbutton(
                 grid_frame, text=str(magic), variable=variable, padx=10, pady=10
             )
-            # create a label with the text "Magic:"
-            label = tk.Label(grid_frame, text="Alias:", padx=10, pady=10)
-            # create an entry for the user to write an alias for the magic
+            # create a label with the value of the magic
+            label = tk.Label(grid_frame, text=str(magic), padx=10, pady=10)
+            # create an entry for the user to see the alias for the magic
             entry = tk.Entry(grid_frame)
-            # add the checkbox, label, and entry to their respective lists
+            # create a label for the profit goal
+            profit_label = tk.Label(grid_frame, text="Profit Goal:", padx=10, pady=10)
+            # create an entry for the user to see the profit goal for the magic
+            profit_entry = tk.Entry(
+                grid_frame,
+                validate="key",
+                validatecommand=(
+                    self.filters_window.register(self.validate_float),
+                    "%P",
+                ),
+            )
+            # create a label for the loss goal
+            loss_label = tk.Label(grid_frame, text="Loss Goal:", padx=10, pady=10)
+            # create an entry for the user to see the loss goal for the magic
+            loss_entry = tk.Entry(
+                grid_frame,
+                validate="key",
+                validatecommand=(
+                    self.filters_window.register(self.validate_float),
+                    "%P",
+                ),
+            )
+            # add the label and entry to their respective lists
+
             checkboxes.append(checkbox)
-            labels.append(label)
-            entries.append(entry)
             checkboxes_states.append(variable)
-            # place the checkbox, label, and entry in the grid layout
+            labels.append(label)
+            entries.append((entry, profit_entry, loss_entry))
+
+            # place the label and entry in the grid layout
             checkbox.grid(row=i, column=0)
             label.grid(row=i, column=1)
             entry.grid(row=i, column=2)
+            profit_label.grid(row=i, column=3)
+            profit_entry.grid(row=i, column=4)
+            loss_label.grid(row=i, column=5)
+            loss_entry.grid(row=i, column=6)
             # check if there is a data.txt file saved from the save_data function
         try:
             # open the file for reading
             with open("data.txt", "r") as f:
                 # read the data dictionary from the file
                 data = eval(f.read())
-                # loop through the checkboxes and entries
                 for checkbox, entry in zip(checkboxes, entries):
-                    # get the value of the checkbox
                     magic = checkbox.cget("text")
                     # get the data for the magic value
                     magic_data = data.get(magic, None)
                     # if there is data for the magic value
                     if magic_data:
-                        # set the checkbox state according to the state field in the data
                         checkbox_state = magic_data.get("state", 0)
                         checkbox.invoke() if checkbox_state else None
+                        alias_input, profit_input, loss_input = entry
                         # set the alias input according to the alias field in the data
                         alias = magic_data.get("alias", "")
-                        entry.insert(0, alias)
-
+                        alias_input.insert(0, alias)
+                        # set the profit goal input according to the profit field in the data
+                        profit = magic_data.get("profit", "")
+                        profit_input.insert(0, profit)
+                        # set the loss goal input according to the loss field in the data
+                        loss = magic_data.get("loss", "")
+                        loss_input.insert(0, loss)
         except FileNotFoundError:
             for checkbox, entry in zip(checkboxes, entries):
-                # get the value of the checkbox
-                magic = checkbox.cget("text")
-                # get the data for the magic value
-                checkbox_state = 1
                 checkbox.invoke() if checkbox_state else None
                 # set the alias input according to the alias field in the data
-
-                entry.insert(0, "")
-        # create a frame for the buttons
+            # create a frame for the buttons
         button_frame = tk.Frame(self.filters_window)
         # create a button to cancel and close the window
         cancel_button = tk.Button(
@@ -391,8 +422,8 @@ class GUI:
             pady=10,
         )
         # place the buttons in the frame
-        cancel_button.pack(side=tk.LEFT)
-        save_button.pack(side=tk.RIGHT)
+        cancel_button.pack(side=tk.LEFT, padx=10, pady=10)
+        save_button.pack(side=tk.RIGHT, padx=10, pady=10)
         # place the frames in the window
         grid_frame.pack()
         button_frame.pack()
@@ -503,14 +534,22 @@ class GUI:
 
         # loop through the checkboxes and entries
         for checkbox, entry, state in zip(checkboxes, entries, states):
+            alias_input, profit_input, loss_input = entry
+
             # get the value of the checkbox
             magic = checkbox.cget("text")
 
             # get the alias of the entry
-            alias = entry.get()
-
+            alias = alias_input.get()
+            profit = profit_input.get()
+            loss = loss_input.get()
             # add the value and alias to the data dictionary
-            data[magic] = {"alias": alias, "state": int(state.get())}
+            data[magic] = {
+                "alias": alias,
+                "profit": profit,
+                "loss": loss,
+                "state": int(state.get()),
+            }
 
         # open a file for writing
         with open("data.txt", "w") as f:
