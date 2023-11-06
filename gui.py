@@ -348,7 +348,7 @@ class GUI:
             self.clear_filters_window,
         )
         # update the window to get the correct size
-        self.center_window(self.filters_window, w=500)
+        self.center_window(self.filters_window, w=800, h=300)
         # create a frame for the grid layout
         grid_frame = tk.Frame(self.filters_window)
         checkboxes = []
