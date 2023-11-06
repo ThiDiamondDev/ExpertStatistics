@@ -411,7 +411,7 @@ def show_edit_filters_window():
     button_frame = tk.Frame(filters_window)
     # create a button to cancel and close the window
     cancel_button = tk.Button(
-        button_frame, text="Cancel", command=filters_window.destroy, padx=10, pady=10
+        button_frame, text="Cancel", command=clear_filters_window, padx=10, pady=10
     )
     # create a button to save the checkboxes and aliases to a file and plot the data
     save_button = tk.Button(
