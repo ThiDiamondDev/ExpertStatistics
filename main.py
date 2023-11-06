@@ -6,7 +6,7 @@ from matplotlib.backends.backend_tkagg import (
 import pandas as pd  # for data manipulation and analysis
 import MetaTrader5 as mt5  # for accessing MetaTrader 5 terminal data
 import tkinter as tk  # for creating graphical user interface
-from datetime import datetime  # for working with dates and times
+from datetime import datetime, date  # for working with dates and times
 from tkcalendar import DateEntry  # for creating calendar widgets
 import matplotlib.colors as mcolors
 from tkinter import ttk
@@ -145,6 +145,8 @@ def plot_data(start_date, end_date):
     # convert the dates to datetime objects
     start_datetime = datetime.combine(start_date, datetime.min.time())
     end_datetime = datetime.combine(end_date, datetime.min.time())
+    if end_datetime.date() == date.today():
+        end_datetime = datetime.now()
     # fetch the data from MetaTrader 5
     deals = fetch_data(start_datetime, end_datetime)
     if deals == None or len(deals) == 0:
