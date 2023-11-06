@@ -155,15 +155,16 @@ def plot_data(start_date, end_date):
     # check if there is a data.txt file saved from the save_data function
     try:
         # read the data dictionary from the file
-        data = read_data_file()
+        saved_data = read_data_file()
         # replace the magic field with the alias and magic number in the format of {alias} - ({magic})
         deals["magic"] = deals["magic"].apply(
-            lambda x: f"{data.get(str(x), {}).get('alias', '')} - ({x})"
+            lambda x: f"{saved_data.get(str(x), {}).get('alias', '')} - ({x})"
         )
         # filter out the deals that have a state of 0 in the data.txt file
         deals = deals[
             deals["magic"].apply(
-                lambda x: data.get(x.split(" - ")[-1][1:-1], {}).get("state", 1) == 1
+                lambda x: saved_data.get(x.split(" - ")[-1][1:-1], {}).get("state", 1)
+                == 1
             )
         ]
     except FileNotFoundError:
@@ -208,7 +209,7 @@ def plot_data(start_date, end_date):
             tag_name = f"magic_{line.get_label()}"
             color = mcolors.to_hex(line.get_color())
             treeview.tag_configure(tag_name, background=color)
-        deals.reset_index()
+        # deals.reset_index()
         positions_count = get_positions(start_date=start_date)
         # clear previous treeview items and insert new items with updated tags
         treeview.delete(*treeview.get_children())
