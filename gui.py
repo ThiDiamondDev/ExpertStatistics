@@ -10,6 +10,8 @@ from tkinter import ttk  # for creating treeview and notebook widgets
 from datetime import datetime, date
 from mt import MT5
 import matplotlib.colors as mcolors
+import matplotlib.dates as mdates
+import re
 
 
 # define a class for creating and displaying the graphical user interface
@@ -17,7 +19,11 @@ class GUI:
     def __init__(self, root: tk.Tk, mt5: MT5):
         self.root = root  # the root window of the GUI
         self.mt5 = mt5  # the MT5 object for accessing the data
-        self.tabs_list = ["Sum Profit", "Mean Profit"]  # the list of tabs for the plots
+        self.tabs_list = [
+            "Sum Profit",
+            "Mean Profit",
+            "Profit Goal",
+        ]  # the list of tabs for the plots
         self.filters_window = None  # the window for editing the filters
         self.info_window = None  # the window for showing the information
         self.create_options_menu()  # create the options menu
@@ -116,13 +122,19 @@ class GUI:
             data = {}
         return data
 
+    def get_value_by_regex(self, data, magic_str, field):
+        magic = re.findall(r"\((.*?)\)", magic_str)
+
+        value = data.get(magic[0]).get(field, 0)
+        if not value:
+            return 0
+        return value
+
     # define a function to plot the data based on the selected dates
     def plot_data(self):
         self.root.title(self.mt5.get_connection_string())
         start_date = self.start_date.get_date()
         end_date = self.end_date.get_date()
-        tabs_list = ["Sum Profit", "Mean Profit"]
-        # use the global canvas variable
         # convert the dates to datetime objects
         start_datetime = datetime.combine(start_date, datetime.min.time())
         end_datetime = datetime.combine(end_date, datetime.min.time())
@@ -163,12 +175,34 @@ class GUI:
         # create a new figure for each tab
         self.fig.clear()
         for title, data in [
-            (tabs_list[0], filtered_data["profit"].sum()),
-            (tabs_list[1], filtered_data["profit"].mean()),
+            (self.tabs_list[0], filtered_data["profit"].sum()),
+            (self.tabs_list[1], filtered_data["profit"].mean()),
+            # add a third plot for the profit goal
+            (
+                self.tabs_list[2],
+                filtered_data["profit"]
+                .sum()
+                .groupby("magic")
+                .apply(
+                    lambda x: x.apply(
+                        lambda y: 1
+                        if y
+                        >= float(self.get_value_by_regex(saved_data, x.name, "profit"))
+                        else -1
+                        if y
+                        <= float(self.get_value_by_regex(saved_data, x.name, "loss"))
+                        else 0
+                    )
+                ),
+            ),
         ]:
             self.fig = plt.Figure(figsize=(5, 4), dpi=100)
             ax = self.fig.add_subplot(111)
             data.unstack().plot(ax=ax)
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+
+            # rotate the x-axis labels for better visibility
+            plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
             ax.set_title(title + " by Magic Number")
             # create a new canvas for each tab
             # add the canvas to the tab and the tab to the tab control
@@ -225,9 +259,8 @@ class GUI:
             self.treeview.delete(child)
 
     def clear_plot(self):
-        global canvas
-        if canvas:
-            canvas.get_tk_widget().destroy()  # destroy the widget
+        if self.canvas:
+            self.canvas.get_tk_widget().destroy()  # destroy the widget
         for child in self.treeview.get_children():
             self.treeview.delete(child)
 
