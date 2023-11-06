@@ -15,7 +15,7 @@ This is a Python script that uses the MetaTrader 5 terminal data to plot the pro
 
 # Usage
 
-* Install the dependencies with `pip install requirements.txt` (I highly recommend to use a venv)  and run the script using `python main.py`
+* Install the dependencies with `pip install -r requirements.txt` (I highly recommend to use a venv)  and run the script using `python main.py`
 * A GUI window will appear with two date entry widgets for selecting the start and end dates
 * Click on the “Plot Data” button to fetch the data from MetaTrader 5 and plot it on a figure object
 * The figure will be displayed on a canvas widget in the GUI window
