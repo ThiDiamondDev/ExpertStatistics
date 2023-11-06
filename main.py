@@ -140,6 +140,7 @@ def group_data_by_time_and_magic(deals):
 # define a function to plot the data based on the selected dates
 def plot_data(start_date, end_date):
     global tab_control, fig, canvas, root, treeview, deals
+    set_connection_status()
     # use the global canvas variable
     # convert the dates to datetime objects
     start_datetime = datetime.combine(start_date, datetime.min.time())
@@ -556,15 +557,31 @@ def save_data(checkboxes, entries, states):
         f.write(str(data))
 
 
+def set_connection_status():
+    terminal_info = mt5.terminal_info()
+    if terminal_info != None:
+        terminal_info_dict = mt5.terminal_info()._asdict()
+        connection_status = terminal_info_dict["connected"]
+        if connection_status:
+            root.title(
+                "Expert Statistics (CONNECTED) - Last Update: {}".format(
+                    datetime.now().strftime("%d/%m/%y %H:%M:%S")
+                )
+            )
+            return
+
+    root.title("Expert Statistics (DISCONNECTED)")
+
+
 def main():
-    global tab_control, fig, canvas, start_date, end_date, root, treeview, filters_window, info_window  # use global variables for these objects
+    global tab_control, connection_status, fig, canvas, start_date, end_date, root, treeview, filters_window, info_window  # use global variables for these objects
 
     initialize_mt5()  # initialize MetaTrader 5
 
     filters_window = None
     info_window = None
     root = tk.Tk()  # create a root window for the GUI
-    root.title("Expert Statistics")
+
     create_options_menu()
     treeview = ttk.Treeview(root)
 
