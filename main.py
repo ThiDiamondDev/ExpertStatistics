@@ -420,7 +420,7 @@ def show_edit_filters_window():
         command=lambda: [
             save_data(checkboxes, entries, checkboxes_states),
             plot_data(start_date.get_date(), end_date.get_date()),
-            filters_window.destroy(),
+            clear_filters_window(),
         ],
         padx=10,
         pady=10,
