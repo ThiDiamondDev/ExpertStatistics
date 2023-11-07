@@ -1,59 +1,52 @@
-name: Build Workflow
+name: Build and Publish
 
 on:
   push:
-#    branches: main
+    branches:
+      - main
 
 jobs:
-  build-windows:
+  build:
     permissions: write-all
     runs-on: windows-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Install Python
-        uses: actions/setup-python@v3
-        with:
-          python-version: '3.10'
-          architecture: 'x64'
-      - name: Install requirements
-        run: |
-          pip install -r requirements.txt
-      - name: Install PyInstaller
-        run: |
-          pip install pyinstaller
-      
-      - name: Run PyInstaller onefile
-        run: |
-          pyinstaller --onefile main.py
-    
-      - name: Run PyInstaller in spec
-        run: |
-          python -m PyInstaller main.spec
-      - uses: actions/upload-artifact@v2
-        with:
-          name: Windows_qwiklabs
-          path: dist/main.exe
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-      - name: create release
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable
+        run: pyinstaller --onefile main.py
+
+      - name: Create release
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.event.head_commit.message }}
-          release_name: ${{ github.event.head_commit.message }}
+          tag_name: v1.0.0
+          release_name: Release v1.0.0
           body: |
-            Test Release v1.0.0
-          draft: true
+            This is the first release of the application.
+          draft: false
           prerelease: false
-      - name: Upload Release Asset
+
+      - name: Upload release asset
         id: upload-release-asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{steps.create_release.outputs.upload_url}}
-          asset_path: dist/main.exe
-          asset_name: ExpertStatistics.exe
-          asset_content_type: application/zip
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/main.exe
+          asset_name: main.exe
+          asset_content_type: application/octet-stream
