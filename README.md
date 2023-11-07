@@ -1,11 +1,11 @@
 
 # Expert Statistics
 
-This is a Python script that uses the MetaTrader 5 terminal data to plot the profit values of history deals grouped by time and magic number. It uses Tkinter to create a graphical user interface (GUI) that allows the user to select the start and end dates for fetching and plotting the data.
+This is a Python script that uses the MetaTrader 5 terminal data to plot data grouped by time and magic number. It uses Tkinter to create a graphical user interface (GUI) that allows the user to select the start and end dates for fetching and plotting the data, showing statistics about Expert Advisors running in MetaTrader5. It also have the option to set a custom alias for the magic number and show/hide info about it.
 
 # Requirements
 
-* Python 3.8 or higher
+* Python 3.8 - 3.10
 * MetaTrader 5 terminal installed and running
 * The following Python modules installed:
     * matplotlib
@@ -18,7 +18,7 @@ This is a Python script that uses the MetaTrader 5 terminal data to plot the pro
 * Install the dependencies with `pip install -r requirements.txt` (I highly recommend to use a venv)  and run the script using `python main.py`
 * A GUI window will appear with two date entry widgets for selecting the start and end dates
 * Click on the “Plot Data” button to fetch the data from MetaTrader 5 and plot it on a figure object
-* The figure will be displayed on a canvas widget in the GUI window
+* The figures will be displayed on a canvas widget in the GUI window
 To exit, close the window or press the Esc key
 
 # Features
@@ -41,10 +41,6 @@ Here are some possible future implementations for this code:
 
 * Add error handling and exception catching to handle any issues that may arise during fetching or plotting of data.
 * Add options to customize plots, such as changing color schemes, adding titles or legends, or saving plots to files.
-* Add support for other types of charts or graphs, such as line charts or scatter plots.
-* Add support for other types of data sources, such as CSV files or SQL databases.
-* Add support for real-time data streaming and plotting.
-* Add support for multiple windows or tabs in GUI to display different plots or data sources.
-* Add support for user authentication and authorization to access restricted data sources.
+* Add more plots.
 
 These are just some ideas for future improvements. The possibilities are endless, and it all depends on your needs and requirements.
