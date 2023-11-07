@@ -22,7 +22,8 @@ class GUI:
         self.tabs_list = [
             "Sum Profit",
             "Mean Profit",
-            "Profit Goal",
+            "Reached Profit Goal",
+            "Profit with Goal Status",
         ]  # the list of tabs for the plots
         self.filters_window = None  # the window for editing the filters
         self.info_window = None  # the window for showing the information

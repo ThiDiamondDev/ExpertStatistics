@@ -104,6 +104,26 @@ class MT5:
                     )
                 ),
             ),
+            (
+                3,
+                tabs_list[3],
+                filtered_data["profit"]
+                .sum()
+                .groupby("magic")
+                .apply(
+                    lambda x: x.apply(
+                        lambda y: 2
+                        if y >= float(self.get_value_by_regex(data, x.name, "profit"))
+                        else 1
+                        if y > 0
+                        else 0
+                        if y == 0
+                        else -2
+                        if y <= float(self.get_value_by_regex(data, x.name, "loss"))
+                        else -1
+                    )
+                ),
+            ),
         ]
 
     def get_value_by_regex(self, data, magic_str, field):
