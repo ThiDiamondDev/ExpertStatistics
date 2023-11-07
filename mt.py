@@ -10,9 +10,11 @@ import re
 class MT5:
     def __init__(self):
         # establish connection to the MetaTrader 5 terminal
+        self.initialize()
+
+    def initialize(self):
         if not mt5.initialize():
             print("initialize() failed, error code =", mt5.last_error())
-            quit()
 
     def fetch_data(self, start_datetime, end_datetime):
         # get the history deals from MetaTrader 5 terminal within the selected dates
@@ -61,16 +63,17 @@ class MT5:
         positions_count = filtered_positions.groupby("magic").size()
         return positions_count.to_dict()
 
-    def get_connection_string(self):
+    def get_connection(self):
         terminal_info = mt5.terminal_info()
+        update_time_string = " - Last Update: {}".format(
+            datetime.now().strftime("%d/%m/%y %H:%M:%S")
+        )
         if terminal_info != None:
             terminal_info_dict = mt5.terminal_info()._asdict()
             connection_status = terminal_info_dict["connected"]
             if connection_status:
-                return "Expert Statistics (CONNECTED) - Last Update: {}".format(
-                    datetime.now().strftime("%d/%m/%y %H:%M:%S")
-                )
-        return "Expert Statistics (DISCONNECTED)"
+                return True, "Expert Statistics (CONNECTED)" + update_time_string
+        return False, "Expert Statistics (DISCONNECTED)" + update_time_string
 
     def shutdown(self):
         return mt5.shutdown()

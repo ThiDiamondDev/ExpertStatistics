@@ -124,7 +124,15 @@ class GUI:
 
     # define a function to plot the data based on the selected dates
     def plot_data(self):
-        self.root.title(self.mt5.get_connection_string())
+        is_connected, connection_string = self.mt5.get_connection()
+        self.root.title(connection_string)
+        if not is_connected:
+            self.mt5.initialize()
+            is_connected, connection_string = self.mt5.get_connection()
+            self.root.title(connection_string)
+            if not is_connected:
+                return
+
         start_date = self.start_date.get_date()
         end_date = self.end_date.get_date()
         # convert the dates to datetime objects
