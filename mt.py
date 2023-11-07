@@ -2,6 +2,8 @@
 import MetaTrader5 as mt5  # for accessing MetaTrader 5 terminal data
 import pandas as pd  # for data manipulation and analysis
 from datetime import datetime, date  # for working with dates and times
+from pandas.core.groupby.generic import DataFrameGroupBy
+import re
 
 
 # define a class for accessing the MetaTrader 5 terminal data
@@ -34,7 +36,7 @@ class MT5:
         deals = pd.DataFrame(list(deals), columns=deals[0]._asdict())
         return deals  # return the dataframe
 
-    def group_data_by_time_and_magic(self, deals):
+    def group_data_by_time_and_magic(self, deals: pd.DataFrame):
         # convert the time column to datetime format
         deals["time"] = pd.to_datetime(deals["time"], unit="s")
         # group the data by time and magic number and sum up the profit values
@@ -72,3 +74,67 @@ class MT5:
 
     def shutdown(self):
         return mt5.shutdown()
+
+    def get_plot_data(
+        self, saved_data, tabs_list: list[str], filtered_data
+    ) -> list[tuple[pd.Series]]:
+        data = saved_data
+        if not data:
+            data = {}
+        return [
+            (0, tabs_list[0], filtered_data["profit"].sum()),
+            (1, tabs_list[1], filtered_data["profit"].mean()),
+            # add a third plot for the profit goal
+            (
+                2,
+                tabs_list[2],
+                filtered_data["profit"]
+                .sum()
+                .groupby("magic")
+                .apply(
+                    lambda x: x.apply(
+                        lambda y: 1
+                        if y >= float(self.get_value_by_regex(data, x.name, "profit"))
+                        else -1
+                        if y <= float(self.get_value_by_regex(data, x.name, "loss"))
+                        else 0
+                    )
+                ),
+            ),
+        ]
+
+    def get_value_by_regex(self, data, magic_str, field):
+        if isinstance(magic_str, int):
+            magic = magic_str
+        else:
+            magic = re.findall(r"\((.*?)\)", str(magic_str))
+            if len(magic) > 0:
+                magic = magic[0]
+            else:
+                return 0
+
+        value = data.get(str(magic))
+        if value:
+            value = value.get(field, 0)
+        if not value:
+            return 0
+        return value
+
+    def get_filtered_deals(self, saved_data, deals):
+        # convert the data to a dataframe
+        deals = self.convert_data_to_dataframe(deals)
+        if saved_data:
+            # replace the magic field with the alias and magic number in the format of {alias} - ({magic})
+            deals["magic"] = deals["magic"].apply(
+                lambda x: f"{saved_data.get(str(x), {}).get('alias', '')} - ({x})"
+            )
+            # filter out the deals that have a state of 0 in the data.txt file
+            deals = deals[
+                deals["magic"].apply(
+                    lambda x: saved_data.get(x.split(" - ")[-1][1:-1], {}).get(
+                        "state", 1
+                    )
+                    == 1
+                )
+            ]
+        return deals

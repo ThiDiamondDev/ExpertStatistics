@@ -118,17 +118,9 @@ class GUI:
         try:
             with open("data.txt", "r") as f:
                 data = eval(f.read())
+                return data
         except FileNotFoundError:
-            data = {}
-        return data
-
-    def get_value_by_regex(self, data, magic_str, field):
-        magic = re.findall(r"\((.*?)\)", magic_str)
-
-        value = data.get(magic[0]).get(field, 0)
-        if not value:
-            return 0
-        return value
+            return None
 
     # define a function to plot the data based on the selected dates
     def plot_data(self):
@@ -145,28 +137,10 @@ class GUI:
         if deals == None or len(deals) == 0:
             self.clear_all()
             return
-        # convert the data to a dataframe
-        deals = self.mt5.convert_data_to_dataframe(deals)
         # check if there is a data.txt file saved from the save_data function
-        try:
-            # read the data dictionary from the file
-            saved_data = self.read_data_file()
-            # replace the magic field with the alias and magic number in the format of {alias} - ({magic})
-            deals["magic"] = deals["magic"].apply(
-                lambda x: f"{saved_data.get(str(x), {}).get('alias', '')} - ({x})"
-            )
-            # filter out the deals that have a state of 0 in the data.txt file
-            deals = deals[
-                deals["magic"].apply(
-                    lambda x: saved_data.get(x.split(" - ")[-1][1:-1], {}).get(
-                        "state", 1
-                    )
-                    == 1
-                )
-            ]
-        except FileNotFoundError:
-            # if there is no data.txt file, do nothing
-            pass
+        # read the data dictionary from the file
+        saved_data = self.read_data_file()
+        deals = self.mt5.get_filtered_deals(saved_data, deals)
         # group the data by time and magic number and sum up the profit values
         filtered_data = self.mt5.group_data_by_time_and_magic(deals)
         # clear the treeview
@@ -174,28 +148,9 @@ class GUI:
         # create a tab container to hold the plots
         # create a new figure for each tab
         self.fig.clear()
-        for title, data in [
-            (self.tabs_list[0], filtered_data["profit"].sum()),
-            (self.tabs_list[1], filtered_data["profit"].mean()),
-            # add a third plot for the profit goal
-            (
-                self.tabs_list[2],
-                filtered_data["profit"]
-                .sum()
-                .groupby("magic")
-                .apply(
-                    lambda x: x.apply(
-                        lambda y: 1
-                        if y
-                        >= float(self.get_value_by_regex(saved_data, x.name, "profit"))
-                        else -1
-                        if y
-                        <= float(self.get_value_by_regex(saved_data, x.name, "loss"))
-                        else 0
-                    )
-                ),
-            ),
-        ]:
+        for i, title, data in self.mt5.get_plot_data(
+            saved_data, self.tabs_list, filtered_data
+        ):
             self.fig = plt.Figure(figsize=(5, 4), dpi=100)
             ax = self.fig.add_subplot(111)
             data.unstack().plot(ax=ax)
@@ -206,48 +161,46 @@ class GUI:
             ax.set_title(title + " by Magic Number")
             # create a new canvas for each tab
             # add the canvas to the tab and the tab to the tab control
-            for tab in self.tab_control.tabs():
-                if self.tab_control.tab(tab, "text") == title:
-                    tab_frame = self.tab_control.nametowidget(tab)
-                    for tab_child in tab_frame.winfo_children():
-                        tab_child.destroy()
-                    canvas = FigureCanvasTkAgg(self.fig, master=tab_frame)
-                    canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-                    canvas.draw()
-            lines = ax.get_lines()
-            total_profit_df = (
-                filtered_data.sum().groupby("magic").agg({"profit": "sum"})
-            )
-            mean_profit_df = (
-                filtered_data["profit"]
-                .mean()
-                .groupby("magic")
-                .agg(profit="mean")
-                .reset_index()
-            )
-            # configure treeview tags to match chart colors
-            for i, line in enumerate(lines):
-                tag_name = f"magic_{line.get_label()}"
-                color = mcolors.to_hex(line.get_color())
-                self.treeview.tag_configure(tag_name, background=color)
+            tab = self.tab_control.tabs()[i]
+            if self.tab_control.tab(tab, "text") == title:
+                tab_frame = self.tab_control.nametowidget(tab)
+                for tab_child in tab_frame.winfo_children():
+                    tab_child.destroy()
+                canvas = FigureCanvasTkAgg(self.fig, master=tab_frame)
+                canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+                canvas.draw()
+        lines = ax.get_lines()
+        total_profit_df = filtered_data.sum().groupby("magic").agg({"profit": "sum"})
+        mean_profit_df = (
+            filtered_data["profit"]
+            .mean()
+            .groupby("magic")
+            .agg(profit="mean")
+            .reset_index()
+        )
+        # configure treeview tags to match chart colors
+        for i, line in enumerate(lines):
+            tag_name = f"magic_{line.get_label()}"
+            color = mcolors.to_hex(line.get_color())
+            self.treeview.tag_configure(tag_name, background=color)
             # deals.reset_index()
-            positions_count = self.mt5.get_positions(start_date, deals)
-            # clear previous treeview items and insert new items with updated tags
-            self.treeview.delete(*self.treeview.get_children())
-            for magic_number, row in total_profit_df.iterrows():
-                mean_mask = mean_profit_df["magic"] == magic_number
-                tag_name = f"magic_{magic_number}"
-                self.treeview.insert(
-                    "",
-                    "end",
-                    values=[
-                        magic_number,
-                        mean_profit_df[mean_mask]["profit"].values[0],
-                        row["profit"],
-                        positions_count.get(magic_number, 0),
-                    ],
-                    tags=[tag_name],
-                )
+        positions_count = self.mt5.get_positions(start_date, deals)
+        # clear previous treeview items and insert new items with updated tags
+        self.treeview.delete(*self.treeview.get_children())
+        for magic_number, row in total_profit_df.iterrows():
+            mean_mask = mean_profit_df["magic"] == magic_number
+            tag_name = f"magic_{magic_number}"
+            self.treeview.insert(
+                "",
+                "end",
+                values=[
+                    magic_number,
+                    mean_profit_df[mean_mask]["profit"].values[0],
+                    row["profit"],
+                    positions_count.get(magic_number, 0),
+                ],
+                tags=[tag_name],
+            )
 
     def clear_all(self):
         # clear all tabs
@@ -405,33 +358,31 @@ class GUI:
             loss_label.grid(row=i, column=5)
             loss_entry.grid(row=i, column=6)
             # check if there is a data.txt file saved from the save_data function
-        try:
-            # open the file for reading
-            with open("data.txt", "r") as f:
-                # read the data dictionary from the file
-                data = eval(f.read())
-                for checkbox, entry in zip(checkboxes, entries):
-                    magic = checkbox.cget("text")
-                    # get the data for the magic value
-                    magic_data = data.get(magic, None)
-                    # if there is data for the magic value
-                    if magic_data:
-                        checkbox_state = magic_data.get("state", 0)
-                        checkbox.invoke() if checkbox_state else None
-                        alias_input, profit_input, loss_input = entry
-                        # set the alias input according to the alias field in the data
-                        alias = magic_data.get("alias", "")
-                        alias_input.insert(0, alias)
-                        # set the profit goal input according to the profit field in the data
-                        profit = magic_data.get("profit", "")
-                        profit_input.insert(0, profit)
-                        # set the loss goal input according to the loss field in the data
-                        loss = magic_data.get("loss", "")
-                        loss_input.insert(0, loss)
-        except FileNotFoundError:
+
+        data = self.read_data_file()
+        if data:
             for checkbox, entry in zip(checkboxes, entries):
-                checkbox.invoke() if checkbox_state else None
-                # set the alias input according to the alias field in the data
+                magic = checkbox.cget("text")
+                # get the data for the magic value
+                magic_data = data.get(magic, None)
+                # if there is data for the magic value
+                if magic_data:
+                    checkbox_state = magic_data.get("state", 0)
+                    checkbox.invoke() if checkbox_state else None
+                    alias_input, profit_input, loss_input = entry
+                    # set the alias input according to the alias field in the data
+                    alias = magic_data.get("alias", "")
+                    alias_input.insert(0, alias)
+                    # set the profit goal input according to the profit field in the data
+                    profit = magic_data.get("profit", "")
+                    profit_input.insert(0, profit)
+                    # set the loss goal input according to the loss field in the data
+                    loss = magic_data.get("loss", "")
+                    loss_input.insert(0, loss)
+        else:
+            for checkbox in checkboxes:
+                checkbox.invoke()
+            # set the alias input according to the alias field in the data
             # create a frame for the buttons
         button_frame = tk.Frame(self.filters_window)
         # create a button to cancel and close the window
